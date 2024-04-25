@@ -1,2 +1,5 @@
 # cobotta_client
-Cobotta client
+Cobotta client implementation in Python.
+
+
+
