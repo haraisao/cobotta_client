@@ -9,13 +9,17 @@ import bcapclient
 import time,copy
 import traceback
 
+#######################
+PACKING_POS=[89.98, -30.0, 120, -170, -94, 0.01]
+ZERO_POS=[0, 0, 80, 0, 0, 0]
+
 ########################################
 def maxmin(x, mx=20, mn=-20):
   return max(min(x, mx), mn)
 
 ########################################
 #
-class Rc8Con(object):
+class Rc8Client(object):
   def __init__(self, host="192.168.0.1", port=5007, timeout=200):
     self.host = host
     self.port = port
@@ -157,7 +161,8 @@ class Rc8Con(object):
   #
   #  send reset command
   def reset(self):
-    #self.robot_execute("ManualResetPreparation")
+    self.robot_execute("ManualResetPreparation")
+    self.robot_execute("MotionPreparation")
     self.controller_execute("ClearError")
     return
 
@@ -317,7 +322,7 @@ class Rc8Con(object):
 
   #
   # set variable in VirtualTP
-   def set_robot_variable(self,name, new_val, opt=""):
+  def set_robot_variable(self,name, new_val, opt=""):
     if not self.m_client: return
     hVal = self.m_client.robot_getvariable(self.hRobot, name, opt)
     self.m_client.variable_putvalue(hVal, new_val)
@@ -568,4 +573,8 @@ class Rc8Con(object):
     val = maxmin(v, 30, 0)
     self.controller_execute("HandMoveA", [val, sp])
     return
+
+  def send_error(self, err=8429148):
+      self.set_variable("@ERROR", err)
+      return
 
