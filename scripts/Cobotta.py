@@ -50,7 +50,7 @@ class Cobotta(Node):
 
     self.execution_client = ActionClient(self, moveit_msgs.action.ExecuteTrajectory, '/execute_trajectory')
     self.arm_controller_command = self.create_publisher(trajectory_msgs.msg.JointTrajectory, '/cobotta/arm_controller/command', 1)
-    self.error_sub = self.create_subscription(UInt32, 'ErrorCode', self.error_callback)
+    self.error_sub = self.create_subscription(UInt32, 'ErrorCode', self.error_callback, 10)
     
     self.bcap_client = cobotta_client.Rc8Client(ip_addr)
     #
@@ -98,8 +98,8 @@ class Cobotta(Node):
     self.current_pose = self.move_group.get_current_pose()
     return self.current_pose
 
-  def move_gripper(self, v=0):
-    self.controller_execute('HandMoveA', v)
+  def move_gripper(self, v=0, sp=100):
+    self.bcap_client.controller_execute('HandMoveA', [v, sp])
     return
 
   def home(self):
@@ -108,14 +108,14 @@ class Cobotta(Node):
 
   #
   #
-  def close_hand(self, val=16,timeout=1):
-    self.controller_execute('HandMoveA', val)
+  def close_hand(self, val=16,timeout=1, sp=100):
+    self.bcap_client,controller_execute('HandMoveA', [val, sp])
     return
 
   #
   #
-  def open_hand(self):
-    self.controller_execute('HandMoveA', 30)
+  def open_hand(self,sp=100):
+    self.bcap_client.controller_execute('HandMoveA', [30, sp])
     return
 
   #
@@ -145,7 +145,7 @@ class Cobotta(Node):
   #
   def set_motor(self, val):
     try:
-      self.bcap_client.motor(val))
+      self.bcap_client.motor(val)
     except:
      print("Not supported")
 
