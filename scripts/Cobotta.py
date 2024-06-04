@@ -10,11 +10,13 @@ import traceback
 import numpy as np
 
 import rclpy
+import rclpy.logging
 from rclpy.node import Node
 from rclpy.action import ActionClient
 #import actionlib
 from action_msgs.srv import CancelGoal
 
+import moveit
 import moveit_commander
 import moveit_msgs.msg
 import moveit_msgs.action
@@ -36,7 +38,6 @@ class Cobotta(Node):
   #
   def __init__(self, extended=True, sim=False, ip_addr="192.168.0.1"):
     super().__init__("arm_controller")
-    moveit_commander.roscpp_initialize(sys.argv)
     self.robot = moveit_commander.RobotCommander()
     self.scene = moveit_commander.PlanningSceneInterface()
     self.scene_pub = self.create_publisher(moveit_msgs.msg.PlanningScene, 'planning_scene', 5)
@@ -217,3 +218,9 @@ class Cobotta(Node):
       return False
 
 
+if __name__ == '__main__':
+  rclpy.init()
+  logger = rclpy.logging.get_logger("moveit_py.pose_goal")
+
+  cobotta = MoveItPy(node_name='moveit_py')
+  arm = cobotta.get_planning_component()
