@@ -38,6 +38,8 @@ class Cobotta(Node):
   #
   def __init__(self, extended=True, sim=False, ip_addr="192.168.0.1"):
     super().__init__("arm_controller")
+    # no more need to initialize in jazzy
+    #moveit_commander.roscpp_initialize(sys.argv)
     self.robot = moveit_commander.RobotCommander()
     self.scene = moveit_commander.PlanningSceneInterface()
     self.scene_pub = self.create_publisher(moveit_msgs.msg.PlanningScene, 'planning_scene', 5)
