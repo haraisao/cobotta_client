@@ -85,6 +85,8 @@ def plan_and_execute(
     logger.error("Planning failed")
 
 if __name__ == '__main__':
+  dx = float(sys.argv[1])
+  dz = float(sys.argv[2])
   rclpy.init()
   logger = rclpy.logging.get_logger("moveit_py.pose_goal")
 
@@ -101,7 +103,8 @@ if __name__ == '__main__':
   goal_pose = PoseStamped()
   goal_pose.header.frame_id = "world"
   goal_pose.pose = copy.deepcopy(s1.get_pose('J6'))
-  goal_pose.pose.position.x += 0.05
+  goal_pose.pose.position.x += dx
+  goal_pose.pose.position.z += dz
 
   arm.set_start_state_to_current_state()
 
