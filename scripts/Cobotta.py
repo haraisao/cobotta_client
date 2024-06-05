@@ -226,3 +226,4 @@ if __name__ == '__main__':
 
   cobotta = MoveItPy(node_name='moveit_py')
   arm = cobotta.get_planning_component()
+  
