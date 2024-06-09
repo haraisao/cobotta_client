@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 import copy
-import numpy as numpy
+import numpy as np
 
 import rclpy
 import rclpy.logging
@@ -15,47 +15,8 @@ from geometry_msgs.msg import PoseStamped, Pose
 from moveit.core.robot_state import RobotState
 from moveit.planning import  MoveItPy
 
-from moveit_configs_utils import MoveItConfigsBuilder
-from ament_index_python.packages import get_package_share_directory
+from config import moveit_config
 
-
-IP_ADDR="127.0.0.1"
-MODEL="cobotta"
-
-moveit_config = (
-        MoveItConfigsBuilder("denso_robot", robot_description="robot_description",
-                              package_name="denso_robot_moveit_config")
-        .robot_description(
-          file_path=os.path.join(get_package_share_directory("denso_robot_descriptions")
-                        ,"urdf" , "denso_robot.urdf.xacro"),
-          mappings={ "ip_address": IP_ADDR,
-                      "model": MODEL,
-                      "send_format": "0",
-                      "recv_format": "2",
-                      "namespace": "",
-                      "verbose": "false",
-                      "sim": "false",
-                      "with_tool": "false",
-                      "ros2_control_hardware_type": "",
-                    },
-          )
-        .robot_description_semantic(
-          file_path="srdf/denso_robot.srdf.xacro",
-          mappings={
-                      "model": MODEL,
-                      "namespace": "",
-              }, 
-
-        )
-        .trajectory_execution(file_path="robots/"+MODEL+"/config/moveit_controllers.yaml")
-        .joint_limits(file_path="robots/"+MODEL+"/config/joint_limits.yaml")
-        .robot_description_kinematics(file_path="config/kinematics.yaml")
-        .moveit_cpp(
-          file_path=os.path.join(get_package_share_directory("denso_robot_moveit_config"),
-                                    "config", "motion_planning.yaml")
-        )
-        .to_moveit_configs()
-    )
 
 def plan_and_execute(
   robot, planning_component, logger,
@@ -87,6 +48,7 @@ def plan_and_execute(
 if __name__ == '__main__':
   dx = float(sys.argv[1])
   dz = float(sys.argv[2])
+
   rclpy.init()
   logger = rclpy.logging.get_logger("moveit_py.pose_goal")
 
@@ -116,13 +78,13 @@ if __name__ == '__main__':
     cobotta.execute(trj, controllers=[])
   else:
     print("Fail to plan...")
+
   # set plan start state using predefined state
   #arm.set_start_state(configuration_name="ready")
-
   # set pose goal using predefined state
   #arm.set_goal_state(configuration_name="extended")
-
   # plan to goal
   #plan_and_execute(cobotta, arm, logger)
 
+  print("======= END")
   cobotta.shutdown()
