@@ -11,13 +11,14 @@ import rclpy.logging
 
 from geometry_msgs.msg import PoseStamped, Pose
 
-
 from moveit.core.robot_state import RobotState
 from moveit.planning import  MoveItPy
 
-from config import moveit_config
+from .config import MOVEIT_CONFIG
+from .quaternion import euler_to_quaternion, quaternion_to_euler
 
-
+#
+#
 def plan_and_execute(
   robot, planning_component, logger,
   single_plan_parameters=None,
@@ -45,6 +46,77 @@ def plan_and_execute(
   else:
     logger.error("Planning failed")
 
+#
+#
+class Cobotta:
+  def __init__(self, name='moveit_py',moveit_config=MOVEIT_CONFIG, planning_component='arm'):
+    self.move_group = MoveItPy(node_name=name, config_dict=moveit_config.to_dict())
+    self.planning_comp = cobotta.get_planning_component(planning_component)
+    self.model = self.move_group.get_robot_model()
+    self.eef = 'J6'
+    self.base_frame='world'
+
+  def get_current_state(self):
+    self.current_state = self.planning_comp.get_start_state()
+    return self.current_state
+
+  def get_current_pose(self):
+    self.get_current_state()
+    self.current_pose = self.current_state.get_pose(self.eef)
+    return self.current_pose
+  
+  def move(self, dx, dy, dz):
+    goal_pose = PoseStamped()
+    goal_pose.header.frame_id = self.base_frame
+    goal_pose.pose = copy.deepcopy(self.current_pose)
+    goal_pose.pose.position.x += dx
+    goal_pose.pose.position.y += dy
+    goal_pose.pose.position.z += dz
+
+    # goal_pose.pose.orientation.x
+    # goal_pose.pose.orientation.y
+    # goal_pose.pose.orientation.z
+    # goal_pose.pose.orientation.w
+
+    self.planning_comp.set_start_state_to_current_state()
+    self.planning_comp.set_goal_state(pose_stamped_msg=goal_pose, pose_link=self.eef)
+
+    plan_result=self.planning_comp.plan()
+    if plan_result:
+      trj = plan_result.trajectory
+      self.move_group.execute(trj, controllers=[])
+    else:
+      print("Fail to plan...")
+    return
+
+  def move_to(self, x, y, z, roll, pitch, yaw):
+    goal_pose = PoseStamped()
+    goal_pose.header.frame_id = self.base_frame
+    goal_pose.pose = copy.deepcopy(self.current_pose)
+    goal_pose.pose.position.x = x
+    goal_pose.pose.position.y = y
+    goal_pose.pose.position.z = z
+
+    quat = euler_to_quaternion(roll,pitch,yaw)
+    goal_pose.pose.orientation.x = quat[0]
+    goal_pose.pose.orientation.y = quat[1]
+    goal_pose.pose.orientation.z = quat[2]
+    goal_pose.pose.orientation.w = quat[3]
+
+    self.planning_comp.set_start_state_to_current_state()
+    self.planning_comp.set_goal_state(pose_stamped_msg=goal_pose, pose_link=self.eef)
+
+    plan_result=self.planning_comp.plan()
+    if plan_result:
+      trj = plan_result.trajectory
+      self.move_group.execute(trj, controllers=[])
+    else:
+      print("Fail to plan...")
+    return
+
+#
+#  M A I N
+#
 if __name__ == '__main__':
   dx = float(sys.argv[1])
   dz = float(sys.argv[2])

@@ -13,7 +13,7 @@ MODEL="cobotta"
 def get_pkg_dir(name, sub_dir=""):
     return os.path.join(get_package_share_directory(name), sub_dir)
 
-moveit_config = (
+MOVEIT_CONFIG = (
   MoveItConfigsBuilder("denso_robot", package_name="denso_robot_moveit_config")
     .robot_description(
           file_path=os.path.join(get_pkg_dir("denso_robot_descriptions","urdf"), "denso_robot.urdf.xacro"),
