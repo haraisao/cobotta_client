@@ -85,9 +85,10 @@ class Cobotta:
     if plan_result:
       trj = plan_result.trajectory
       self.move_group.execute(trj, controllers=[])
+      return True
     else:
       print("Fail to plan...")
-    return
+      return False
 
   def move_to(self, x, y, z, roll, pitch, yaw):
     goal_pose = PoseStamped()
@@ -110,8 +111,14 @@ class Cobotta:
     if plan_result:
       trj = plan_result.trajectory
       self.move_group.execute(trj, controllers=[])
+      return True
     else:
       print("Fail to plan...")
+      return False
+  
+  def shutdown(self):
+    self.move_group.shutdown()
+    self.move_group = None
     return
 
 #
