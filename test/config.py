@@ -36,7 +36,7 @@ MOVEIT_CONFIG = (
     .joint_limits(file_path="robots/"+MODEL+"/config/joint_limits.yaml")
     .robot_description_kinematics(file_path="config/kinematics.yaml")
     .moveit_cpp(
-      file_path=os.path.join(get_pkg_dir("denso_robot_moveit_config", "config"), "motion_planning.yaml")
+      file_path="config/motion_planning.yaml"
     )
     .to_moveit_configs()
 )

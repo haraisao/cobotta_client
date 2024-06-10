@@ -14,8 +14,8 @@ from geometry_msgs.msg import PoseStamped, Pose
 from moveit.core.robot_state import RobotState
 from moveit.planning import  MoveItPy
 
-from .config import MOVEIT_CONFIG
-from .quaternion import euler_to_quaternion, quaternion_to_euler
+from config import MOVEIT_CONFIG
+from quaternion import euler_to_quaternion, quaternion_to_euler
 
 #
 #
@@ -51,7 +51,7 @@ def plan_and_execute(
 class Cobotta:
   def __init__(self, name='moveit_py',moveit_config=MOVEIT_CONFIG, planning_component='arm'):
     self.move_group = MoveItPy(node_name=name, config_dict=moveit_config.to_dict())
-    self.planning_comp = cobotta.get_planning_component(planning_component)
+    self.planning_comp = self.move_group.get_planning_component(planning_component)
     self.model = self.move_group.get_robot_model()
     self.eef = 'J6'
     self.base_frame='world'
@@ -65,6 +65,18 @@ class Cobotta:
     self.current_pose = self.current_state.get_pose(self.eef)
     return self.current_pose
   
+  def get_current_rpy(self):
+    self.get_current_pose()
+    quat=self.current_pose.orientation
+    rpy_ = quaternion_to_euler(quat.x, quat.y, quat.z, quat.w)
+    return rpy_
+
+  def get_current_pos(self):
+    self.get_current_pose()
+    pos=self.current_pose.position
+    return pos.x, pos.y, pos.z 
+
+
   def move(self, dx, dy, dz):
     goal_pose = PoseStamped()
     goal_pose.header.frame_id = self.base_frame
@@ -131,7 +143,7 @@ if __name__ == '__main__':
   rclpy.init()
   logger = rclpy.logging.get_logger("moveit_py.pose_goal")
 
-  cobotta = MoveItPy(node_name='moveit_py', config_dict=moveit_config.to_dict())
+  cobotta = MoveItPy(node_name='moveit_py', config_dict=MOVEIT_CONFIG.to_dict())
   arm = cobotta.get_planning_component("arm")
   logger.info("MoveItPy instance created")
 
