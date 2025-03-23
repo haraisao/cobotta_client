@@ -41,7 +41,8 @@ class Cobotta(Node):
     self.scene = moveit_commander.PlanningSceneInterface()
     self.scene_pub = self.create_publisher(moveit_msgs.msg.PlanningScene, 'planning_scene', 5)
 
-    self.move_group = moveit_commander.MoveGroupCommander('arm')
+    self.arm = moveit_commander.MoveGroupCommander('arm')
+    self.hand = moveit_commander.MoveGroupCommander('hand')
 
     #
     # for COBOTTA
@@ -70,8 +71,8 @@ class Cobotta(Node):
   #
   # 
   def set_scaling(self, v_scale=1.0, a_scale=1.0):
-    self.move_group.set_max_acceleration_scaling_factor(a_scale)
-    self.move_group.set_max_velocity_scaling_factor(v_scale)
+    self.arm.set_max_acceleration_scaling_factor(a_scale)
+    self.arm.set_max_velocity_scaling_factor(v_scale)
     return
 
   #
@@ -89,13 +90,13 @@ class Cobotta(Node):
   #
   #
   def get_current_joints(self):
-    self.current_joints = self.move_group.get_current_joint_values()
+    self.current_joints = self.arm.get_current_joint_values()
     return self.current_joints
 
   #
   #
   def get_current_pose(self):
-    self.current_pose = self.move_group.get_current_pose()
+    self.current_pose = self.arm.get_current_pose()
     return self.current_pose
 
   def move_gripper(self, v=0, sp=100):
@@ -154,7 +155,7 @@ class Cobotta(Node):
   #
   #  
   def planning(self):
-    ret, plan, _1, _2 =self.move_group.plan()
+    ret, plan, _1, _2 =self.arm.plan()
     if len(plan[0].joint_trajectory.points) == 0:
       return None
     else:
@@ -169,11 +170,11 @@ class Cobotta(Node):
     target_pose.pose.position.y += y
     target_pose.pose.position.z += z
 
-    self.move_group.set_pose_target(target_pose)
+    self.arm.set_pose_target(target_pose)
     plan = self.planning()
 
     if plan is None: return False
-    res = self.move_group.execute(plan, wait=True)
+    res = self.arm.execute(plan, wait=True)
 
     self.update()
     return res
@@ -182,23 +183,19 @@ class Cobotta(Node):
   #
   def move_joint(self, goal):
     joints = [np.deg2rad(x) for x in goal]
-    res = self.move_group.go(joints, wait=True)
+    res = self.arm.go(joints, wait=True)
     self.update()
     return res
 
   #
   #
-  def move_tp_pos(self, pname, tool=True):
+  def move_tp_pos(self, pname):
     try:
       res=self.bcap_client.get_variable(pname)
       pos=res.value
       target=[pos[0]/1000, pos[1]/1000, pos[2]/1000, np.deg2rad(pos[3]) , np.deg2rad(pos[4]) , np.deg2rad(pos[5])]
-      if tool :
-        self.move_group_tool.set_pose_target(target)
-        self.move_group_tool.go()
-      else:
-        self.move_group.set_pose_target(target)
-        self.move_group.go()
+      self.arm.set_pose_target(target)
+      self.arm.go()
       return target
 
     except:
