@@ -574,7 +574,42 @@ class Rc8Client(object):
     self.controller_execute("HandMoveA", [val, sp])
     return
 
+  def hand_move_AH(self, v, sp=100, n=30):
+    val = maxmin(v, 30, 0)
+    self.controller_execute("HandMoveAH", [val, sp, n])
+    return
+
+
   def send_error(self, err=8429148):
       self.set_variable("@ERROR", err)
       return
 
+def main():
+    import sys
+    if len(sys.argv) > 1:
+        rc8_ = Rc8Client()
+        rc8_.connect()
+        if sys.argv[0] == 'MotionPreparation':
+            rc8_.motion_preparation()
+        elif sys.argv[0] == 'reset':
+            rc8_.reset()
+        elif sys.argv[0] == 'motor':
+            rc8_.motor(int(sys.argv[2]))
+        elif sys.argv[0] == 'move':
+            rc8_.take_arm()
+            pose=eval(sys.argv[2])
+            rc8_.move(*pose)
+            rc8_.giv_arm()
+        elif sys.argv[0] == 'hand':
+            rc8_.take_arm()
+            rc8_.hand_move_AH(int(sys.argv))
+            rc8_.giv_arm()
+
+        rc8_.disconnect()
+    else:
+        print("Usage: %s [cmd]" % sys.argv[0])
+
+
+
+if __name__ == '__main__':
+    main()
