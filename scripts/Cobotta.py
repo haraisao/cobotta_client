@@ -46,6 +46,8 @@ GRIPPER_MAX_WIDTH = 30  # milimeter
 BIG_OBJECT_GRIPPER_WIDTH = 24  # milimeter
 SMALL_OBJECT_GRIPPER_WIDTH = 5  # milimeter
 
+POS1 = [27, 63, 60, 33, -50, 28]
+POS2 = [-23, 29, 122, -25, -75, 12]
 
 class Cobotta(Node):
     #
@@ -93,6 +95,8 @@ class Cobotta(Node):
         self.accel=0.6
         self.resample=0.0
         self.current_mode=514
+        self.ESP=0.01
+
         self.set_scaling(self.velocity, self.accel)
         self.arm.set_planning_time(8.0)
         self.update()
@@ -238,10 +242,9 @@ class Cobotta(Node):
         dt = np.array(trj[1])  - np.array(trj[0])
         res = [trj[0]]
         #res = []
-        ESP = 0.01
         for i in range(len(trj) - 2):
             dt_tmp = np.array(trj[i+2]) - np.array(trj[i+1])
-            if np.linalg.norm(dt - dt_tmp) > ESP :
+            if np.linalg.norm(dt - dt_tmp) > self.ESP :
                 res.append(trj[i+1])
                 dt = dt_tmp
         res.append(trj[-1])
@@ -366,4 +369,12 @@ class Cobotta(Node):
         self.open_hand()
         return True
 
+    def add_box(self, name, x, y, z, size=(0.05, 0.05, 0.05)):
+        pose_ = self.scene.gen_pose(x, y, z)
+        self.scene.add_box(name, pose_, size)
+        return
 
+    def move_joint_value(self, jpos, deg=True):
+        self.arm.set_joint_value_target(jpos, deg=deg)
+        self.arm.go()
+        return
