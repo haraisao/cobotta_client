@@ -33,7 +33,7 @@ def plot_joint_plan(plan):
     x = get_time_seq(plan)
     y = np.array(get_pos_seq(plan))
     for i in range(6):
-      plt.plot(x, y[:, i])
+        plt.plot(x, y[:, i])
     plt.show()
 
 #########################
@@ -55,14 +55,14 @@ class Cobotta(Node):
     def __init__(self, extended=True, use_sim=None):
         try:
             rclpy.init()
-        except:
+        except Exception:
             pass
         super().__init__("arm_controller")
         self.declare_parameter("sim", False)
         if use_sim is None:
-          sim_mode = self.get_parameter("sim").get_parameter_value().bool_value
+            sim_mode = self.get_parameter("sim").get_parameter_value().bool_value
         else:
-          sim_mode=use_sim
+            sim_mode=use_sim
         moveit_commander.roscpp_initialize(sys.argv, use_sim=sim_mode)
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
@@ -88,14 +88,17 @@ class Cobotta(Node):
             CancelGoal,
             "/move_action/_action/cancel_goal",
         )
-        self.sub_state = self.create_subscription(Int32, "/cobotta/CurMode", self.callback_cur_mode, 10)
+        self.sub_state = self.create_subscription(Int32, "/cobotta/CurMode",
+                                                  self.callback_cur_mode, 10)
         #
         # Extended function adn topics by RT-Coorp
-        self.velocity=0.8
-        self.accel=0.6
-        self.resample=0.0
-        self.current_mode=514
-        self.ESP=0.01
+        self.current_joints = None
+        self.current_pose = None
+        self.velocity = 0.8
+        self.accel = 0.6
+        self.resample = 0.0
+        self.current_mode = 514
+        self.esp = 0.01
 
         self.set_scaling(self.velocity, self.accel)
         self.arm.set_planning_time(8.0)
@@ -119,7 +122,7 @@ class Cobotta(Node):
         self.accel=a_scale
         return
 
-    def callback_cur_mode(msg):
+    def callback_cur_mode(self, msg):
         self.current_mode=msg.data
         return
 
@@ -209,34 +212,37 @@ class Cobotta(Node):
 
     def retime_plan(self, plan, vel=0, acc=0, resample=-1):
         stat_ = self.arm.get_current_state()
-        if vel <= 0 : vel=self.velocity
-        if acc <= 0 : acc=self.accel
-        if resample < 0 : resample=self.resample
+        if vel <= 0 :
+            vel=self.velocity
+        if acc <= 0 :
+            acc=self.accel
+        if resample < 0 :
+            resample=self.resample
         if resample:
-          return self.arm.retime_trajectory(stat_, plan, vel, acc, resample_dt=resample)
+            return self.arm.retime_trajectory(stat_, plan, vel, acc, resample_dt=resample)
         else:
-          return self.arm.retime_trajectory(stat_, plan, vel, acc)
+            return self.arm.retime_trajectory(stat_, plan, vel, acc)
 
     def get_joint_trajectory(self, plan, deg=False, restruct=False):
         trj=[]
         try:
-          if plan[0] :
-            trj_ = plan[1][0].joint_trajectory
-            for p in trj_.points:
-              if deg:
-                trj.append(np.rad2deg(p.positions))
-              else:
-                trj.append(p.positions)
-            if restruct:
-              return self.get_waypoints(trj)
+            if plan[0] :
+                trj_ = plan[1][0].joint_trajectory
+                for p in trj_.points:
+                    if deg:
+                        trj.append(np.rad2deg(p.positions))
+                    else:
+                        trj.append(p.positions)
+                if restruct:
+                    return self.get_waypoints(trj)
+                else:
+                    return trj
             else:
-              return trj
-          else:
-            print("Fail to get plan")
+                print("Fail to get plan")
+                return None
+        except Exception:
+            print("Invalid argument")
             return None
-        except:
-          print("Invalid argument")
-          return None
 
     def get_waypoints(self, trj):
         dt = np.array(trj[1])  - np.array(trj[0])
@@ -244,7 +250,7 @@ class Cobotta(Node):
         #res = []
         for i in range(len(trj) - 2):
             dt_tmp = np.array(trj[i+2]) - np.array(trj[i+1])
-            if np.linalg.norm(dt - dt_tmp) > self.ESP :
+            if np.linalg.norm(dt - dt_tmp) > self.esp :
                 res.append(trj[i+1])
                 dt = dt_tmp
         res.append(trj[-1])
@@ -296,7 +302,8 @@ class Cobotta(Node):
         if plan is None:
             return False
 
-        if self.current_mode == 0: return False
+        if self.current_mode == 0:
+            return False
         res = self.arm.execute(plan, wait=True)
         self.update()
         return
@@ -329,26 +336,30 @@ class Cobotta(Node):
         pose = self.current_pose
         pose.pose.position.z = z + height_margin
         res=self.move_pose(pose)
-        if not res: return False
+        if not res:
+            return False
         self.open_hand()
 
         # 物体の真上まで移動
         pose.pose.position.x = x
         pose.pose.position.y = y
         res=self.move_pose(pose)
-        if not res: return False
+        if not res:
+            return False
 
         time.sleep(0.8)
         # 物体を掴みに行く
         pose.pose.position.z = z
         res=self.move_pose(pose)
-        if not res: return False
+        if not res:
+            return False
         self.close_hand(val=gripper_width)
 
         # 物体を持ち上げる
         pose.pose.position.z = z + height_margin
         res=self.move_pose(pose)
-        if not res: return False
+        if not res:
+            return False
         return True
 
     def dropoff_to_position(self, x, y, z, height_margin=0.05):
@@ -359,13 +370,15 @@ class Cobotta(Node):
         pose.pose.position.y = y
         pose.pose.position.z = z + height_margin
         res = self.move_pose(pose)
-        if not res: return False
+        if not res:
+            return False
 
         time.sleep(1)
         # 物体を置く
         pose.pose.position.z -= height_margin
         res=self.move_pose(pose)
-        if not res: return False
+        if not res:
+            return False
         self.open_hand()
         return True
 
