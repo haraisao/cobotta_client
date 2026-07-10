@@ -109,7 +109,7 @@ class Cobotta(Node):
   #
   #
   def close_hand(self, val=16,timeout=1, sp=100):
-    self.bcap_client,controller_execute('HandMoveA', [val, sp])
+    self.bcap_client.controller_execute('HandMoveA', [val, sp])
     return
 
   #
@@ -147,7 +147,7 @@ class Cobotta(Node):
     try:
       self.bcap_client.motor(val)
     except:
-     print("Not supported")
+      print("Not supported")
 
     return
 
