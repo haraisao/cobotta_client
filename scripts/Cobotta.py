@@ -18,6 +18,8 @@ import rclpy
 
 import matplotlib.pyplot as plt
 
+import cobotta_client
+
 #########################
 #
 def get_time_val(x):
@@ -52,7 +54,7 @@ POS2 = [-23, 29, 122, -25, -75, 12]
 class Cobotta(Node):
     #
     #
-    def __init__(self, extended=True, use_sim=None):
+    def __init__(self, extended=True, use_sim=None, host="192.168.0.1"):
         try:
             rclpy.init()
         except Exception:
@@ -90,6 +92,9 @@ class Cobotta(Node):
         )
         self.sub_state = self.create_subscription(Int32, "/cobotta/CurMode",
                                                   self.callback_cur_mode, 10)
+
+        self.rc8client = cobotta_client.Rc8Client(host)
+        self.rc8client.connect()
         #
         # Extended function adn topics by RT-Coorp
         self.current_joints = None
@@ -120,6 +125,8 @@ class Cobotta(Node):
         self.arm.set_max_velocity_scaling_factor(v_scale)
         self.velocity=v_scale
         self.accel=a_scale
+        if self.rc8client.is_connected():
+            self.rc8client.set_speed(int(v_scale * 100))
         return
 
     def callback_cur_mode(self, msg):
@@ -275,12 +282,17 @@ class Cobotta(Node):
 
     #
     #
-    def move(self, x, y, z):
+    def move(self, x, y, z, rel=False):
         self.update()
         target_pose = copy.deepcopy(self.current_pose)
-        target_pose.pose.position.x = float(x)
-        target_pose.pose.position.y = float(y)
-        target_pose.pose.position.z = float(z)
+        if rel:
+            target_pose.pose.position.x += float(x)
+            target_pose.pose.position.y += float(y)
+            target_pose.pose.position.z += float(z)
+        else:
+            target_pose.pose.position.x = float(x)
+            target_pose.pose.position.y = float(y)
+            target_pose.pose.position.z = float(z)
 
         self.arm.set_pose_target(target_pose)
         plan = self.planning()
