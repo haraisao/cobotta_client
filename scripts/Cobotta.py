@@ -13,12 +13,13 @@ import moveit_commander
 import moveit_msgs.msg
 
 from denso_robot_core_interfaces.srv import ChangeMode
-from std_msgs.msg import Int32
+from std_msgs.msg import UInt32, Float64
+from std_srvs.srv import SetBool
 import rclpy
 
 import matplotlib.pyplot as plt
 
-import cobotta_client
+#import cobotta_client
 
 #########################
 #
@@ -90,11 +91,16 @@ class Cobotta(Node):
             CancelGoal,
             "/move_action/_action/cancel_goal",
         )
-        self.sub_state = self.create_subscription(Int32, "/cobotta/CurMode",
-                                                  self.callback_cur_mode, 10)
+        #self.sub_state = self.create_subscription(Int32, "/cobotta/CurMode",
+        #                                          self.callback_cur_mode, 10)
 
-        self.rc8client = cobotta_client.Rc8Client(host)
-        self.rc8client.connect()
+        self.reset_client = self.create_client(SetBool, "/cobotta/reset")
+        self.motor_client = self.create_client(SetBool, "/cobotta/motor")
+        self.pub_hand = self.create_publisher(UInt32, "/cobotta/HandMoveA", 1)
+        self.pub_speed = self.create_publisher(Float64, "/cobotta/set_speed", 1)
+
+        #self.rc8client = cobotta_client.Rc8Client(host)
+        #self.rc8client.connect()
         #
         # Extended function adn topics by RT-Coorp
         self.current_joints = None
@@ -125,8 +131,9 @@ class Cobotta(Node):
         self.arm.set_max_velocity_scaling_factor(v_scale)
         self.velocity=v_scale
         self.accel=a_scale
-        if self.rc8client.is_connected():
-            self.rc8client.set_speed(int(v_scale * 100))
+        self.set_speed(v_scale)
+        #if self.rc8client.is_connected():
+        #    self.rc8client.set_speed(int(v_scale * 100))
         return
 
     def callback_cur_mode(self, msg):
@@ -193,14 +200,41 @@ class Cobotta(Node):
         self.move_gripper(30)
         return
 
+    def request_reset(self,mode=False):
+        req = SetBool.Request()
+        req.data = mode
+        self.future = self.reset_client.call_async(req)
+        rclpy.spin_until_future_complete(self, self.future)
+        return self.future.result()
+
+    def request_motor(self,mode=False):
+        req = SetBool.Request()
+        req.data = mode
+        self.future = self.motor_client.call_async(req)
+        rclpy.spin_until_future_complete(self, self.future)
+        return self.future.result()
+
+    def set_speed(self,val):
+        msg = Float64(data=val)
+        self.pub_speed.publish(msg)
+        rclpy.spin_once(self, timeout_sec=1.0)
+        return 
+
+    def set_hand(self,val):
+        msg = UInt32(data=val)
+        self.pub_hand.publish(msg)
+        rclpy.spin_once(self, timeout_sec=1.0)
+        return 
+
     #
     #
-    def reset(self):
+    def reset(self, slave_mode=False):
         try:
             self.reset_target()
             self.arm.stop()
             self.cancel_all_actions()
-            self.set_slave()
+            if slave_move:
+               self.set_slave()
         except Exception as e:
             self.get_logger().info(f"COBOTTA RESET WARNING: Not supported {e}")
         return
@@ -208,14 +242,16 @@ class Cobotta(Node):
     def set_normal(self):
         req = ChangeMode.Request()
         req.mode = 0
-        self.mode_client.call_async(req)
-        return
+        self.future = self.mode_client.call_async(req)
+        rclpy.spin_until_future_complete(self, self.future)
+        return self.future.result()
 
     def set_slave(self):
         req = ChangeMode.Request()
         req.mode = 0x202
         self.mode_client.call_async(req)
-        return
+        rclpy.spin_until_future_complete(self, self.future)
+        return self.future.result()
 
     def retime_plan(self, plan, vel=0, acc=0, resample=-1):
         stat_ = self.arm.get_current_state()
@@ -305,9 +341,12 @@ class Cobotta(Node):
         self.update()
         return res
 
-    def move_orientation(self, ori):
+    def move_orientation(self, rpy):
         self.update()
-        target_pose = self.get_current_pos() + ori
+        _pose = copy.deepcopy(self.current_pose)
+        _rpy = [np.deg2rad(x) for x in rpy]
+        target_pose=[ _pose.pose.position.x, _pose.pose.position.y,
+            _pose.pose.position.z, _rpy[0], _rpy[1], _rpy[2]]
         self.arm.set_pose_target(target_pose)
         plan = self.planning()
 
@@ -343,55 +382,40 @@ class Cobotta(Node):
         self.update()
         return res
 
-    def pickup_from_position(self, x, y, z, gripper_width=7, height_margin=0.05):
-        # ピッキングの高さまえ移動
-        pose = self.current_pose
-        pose.pose.position.z = z + height_margin
-        res=self.move_pose(pose)
-        if not res:
-            return False
+    def pickup_from_position(self, x, y, z, gripper_width=9, height_margin=0.05):
         self.open_hand()
 
         # 物体の真上まで移動
-        pose.pose.position.x = x
-        pose.pose.position.y = y
-        res=self.move_pose(pose)
+        res=self.move_pose([x, y, z+height_margin, 0, np.pi,0])
         if not res:
             return False
 
         time.sleep(0.8)
         # 物体を掴みに行く
-        pose.pose.position.z = z
-        res=self.move_pose(pose)
+        res=self.move_pose([x, y, z, 0, np.pi,0])
         if not res:
             return False
         self.close_hand(val=gripper_width)
 
         # 物体を持ち上げる
-        pose.pose.position.z = z + height_margin
-        res=self.move_pose(pose)
+        res=self.move_pose([x, y, z+height_margin, 0, np.pi,0])
         if not res:
             return False
         return True
 
     def dropoff_to_position(self, x, y, z, height_margin=0.05):
-        pose = self.current_pose
-
         # 置く位置まで移動
-        pose.pose.position.x = x
-        pose.pose.position.y = y
-        pose.pose.position.z = z + height_margin
-        res = self.move_pose(pose)
+        res = self.move_pose([x, y, z+height_margin, 0, np.pi, 0])
         if not res:
             return False
 
         time.sleep(1)
         # 物体を置く
-        pose.pose.position.z -= height_margin
-        res=self.move_pose(pose)
+        res = self.move_pose([x, y, z, 0, np.pi, 0])
         if not res:
             return False
         self.open_hand()
+        res = self.move_pose([x, y, z+height_margin, 0, np.pi, 0])
         return True
 
     def add_box(self, name, x, y, z, size=(0.05, 0.05, 0.05)):
